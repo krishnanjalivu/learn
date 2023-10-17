@@ -1,13 +1,24 @@
 import React, { useState } from "react";
-import { useRecoilState, useSetRecoilState } from "recoil";
-import { todoAtom } from "./atoms";
+import { useRecoilState } from "recoil";
+import { todoState } from "./state/atom";
 import { useMutation, useQuery } from "@apollo/client";
-import { UPDATE_TODO, GET_TODOS } from "./graphql";
+import { GET_TODOS } from "./graphql/query";
+import { UPDATE_TODO } from "./graphql/mutation";
+
+interface Todo {
+  id: string;
+  description: string;
+  done: boolean;
+}
+interface Todo {
+  id: string;
+  done: boolean;
+}
 
 const Todolist: React.FC = () => {
   const [input, setInput] = useState("");
-  const [todos, setTodos] = useRecoilState(todoAtom);
-  const [updateTodo] = useMutation(UPDATE_TODO);
+  const [todos, setTodos] = useRecoilState<Todo[]>(todoState);
+  const [updateTodo] = useMutation(UPDATE_TODO!);
 
   const { data, loading, error } = useQuery(GET_TODOS);
 
@@ -19,24 +30,27 @@ const Todolist: React.FC = () => {
     return <div>Error: {error.message}</div>;
   }
 
+  const allTodos = [...todos, ...(data?.todos || [])];
+
   const handleAddTodo = async () => {
-    const newTodo = {
-      id: Date.now(),
+    const newTodo: Todo = {
+      id: Date.now().toString(),
       description: input,
       done: false,
     };
 
     await updateTodo({
       variables: {
-        input: newTodo,
+        input: newTodo!,
       },
+      refetchQueries: [{ query: GET_TODOS }],
     });
 
     setTodos([...todos, newTodo]);
     setInput("");
   };
 
-  const handleUpdateTodo = async (todo) => {
+  const handleUpdateTodo = async (todo: Todo) => {
     await updateTodo({
       variables: {
         input: {
@@ -44,6 +58,7 @@ const Todolist: React.FC = () => {
           description: todo.description,
           done: todo.done,
         },
+        refetchQueries: [{ query: GET_TODOS }],
       },
     });
 
@@ -57,20 +72,32 @@ const Todolist: React.FC = () => {
     );
   };
 
+  const handleToggle = (id: string): void => {
+    setTodos((todos: Todo[]) =>
+      todos.map((todo: Todo) => {
+        if (todo.id === id) {
+          return { ...todo, done: !todo.done };
+        }
+        return todo;
+      })
+    );
+  };
   return (
     <div className="main-container">
       <h1>Todo List</h1>
       <ul>
-        {todos.map((todo) => (
+        {allTodos.map((todo) => (
           <li
             key={todo.id}
-            onClick={() => handleUpdateTodo(todo)}
+            onClick={() => handleToggle(todo.id)}
             style={{
               textDecoration: todo.done ? "line-through" : "none",
             }}
           >
             {todo.description}
-            <span className="Edit">✏️</span>
+            <span className="Edit" onClick={() => handleUpdateTodo(todo)}>
+              ✏️
+            </span>
           </li>
         ))}
       </ul>

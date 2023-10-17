@@ -1,6 +1,12 @@
 import { atom } from "recoil";
 
-export const todoState = atom({
-    key: 'todoState', // unique ID (with respect to other atoms/selectors)
-    default: [], // default value (aka initial value)
-  });
+interface Todo {
+  id: string;
+  description: string;
+  done: boolean;
+}
+
+export const todoState = atom<Todo[]>({
+  key: "todoState",
+  default: [],
+});
