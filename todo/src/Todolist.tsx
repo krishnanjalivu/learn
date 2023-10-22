@@ -18,8 +18,8 @@ interface Todo {
 const Todolist: React.FC = () => {
   const [input, setInput] = useState("");
   const [todos, setTodos] = useRecoilState<Todo[]>(todoState);
-  const [updateTodo] = useMutation(UPDATE_TODO!);
-
+  const [updateTodo] = useMutation(UPDATE_TODO);
+  const [editingTodo, setEditingTodo] = useState<Todo | null>(null);
   const { data, loading, error } = useQuery(GET_TODOS);
 
   if (loading) {
@@ -41,7 +41,7 @@ const Todolist: React.FC = () => {
 
     await updateTodo({
       variables: {
-        input: newTodo!,
+        input: newTodo,
       },
       refetchQueries: [{ query: GET_TODOS }],
     });
@@ -50,26 +50,49 @@ const Todolist: React.FC = () => {
     setInput("");
   };
 
-  const handleUpdateTodo = async (todo: Todo) => {
-    await updateTodo({
-      variables: {
-        input: {
-          id: todo.id,
-          description: todo.description,
-          done: todo.done,
+  // const handleUpdateTodo = async (todo: Todo) => {
+  //   await updateTodo({
+  //     variables: {
+  //       input: {
+  //         id: todo.id,
+  //         description: input,
+  //         done: todo.done,
+  //       },
+  //       refetchQueries: [{ query: GET_TODOS }],
+  //     },
+  //   });
+
+  //   setTodos((prevTodos) =>
+  //     prevTodos.map((t) => {
+  //       if (t.id === todo.id) {
+  //         return todo;
+  //       }
+  //       return t;
+  //     })
+  //   );
+  // };
+  const handleUpdateTodo = async () => {
+    if (editingTodo) {
+      await updateTodo({
+        variables: {
+          input: {
+            id: editingTodo.id,
+            description: input,
+            done: editingTodo.done,
+          },
         },
         refetchQueries: [{ query: GET_TODOS }],
-      },
-    });
+      });
 
-    setTodos((prevTodos) =>
-      prevTodos.map((t) => {
-        if (t.id === todo.id) {
-          return todo;
-        }
-        return t;
-      })
-    );
+      setTodos((prevTodos) =>
+        prevTodos.map((t) =>
+          t.id === editingTodo.id ? { ...t, description: input } : t
+        )
+      );
+
+      setEditingTodo(null);
+      setInput("");
+    }
   };
 
   const handleToggle = (id: string): void => {
@@ -85,22 +108,38 @@ const Todolist: React.FC = () => {
   return (
     <div className="main-container">
       <h1>Todo List</h1>
-      <ul>
-        {allTodos.map((todo) => (
+      {allTodos.map((todo) => (
+        <ul key={todo.id}>
           <li
-            key={todo.id}
             onClick={() => handleToggle(todo.id)}
             style={{
               textDecoration: todo.done ? "line-through" : "none",
             }}
           >
-            {todo.description}
-            <span className="Edit" onClick={() => handleUpdateTodo(todo)}>
-              ✏️
-            </span>
+            {todo.id === editingTodo?.id ? (
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onBlur={handleUpdateTodo}
+              />
+            ) : (
+              todo.description
+            )}
           </li>
-        ))}
-      </ul>
+          {todo.id !== editingTodo?.id && (
+            <button
+              className="Edit"
+              onClick={() => {
+                setEditingTodo(todo);
+                setInput(todo.description);
+              }}
+            >
+              ✏️
+            </button>
+          )}
+        </ul>
+      ))}
       <input
         type="text"
         placeholder="Enter your task"
